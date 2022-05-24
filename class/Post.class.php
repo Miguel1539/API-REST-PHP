@@ -162,21 +162,18 @@ class Post extends Conexion
           // formatear url de las imagenes
           foreach ($datos as $key => $value) {
             // añadir active: true, drawer: false
-            $datos[$key]['active'] = true;
+            // query para saber si el usuario dio like
+            $sql = "SELECT COUNT(*) FROM `likes` WHERE `user_id` = $userID AND `publicacion_id` = $value[ID_publicacion]";
+            $like = parent::obtenerDatos($sql);
+            if ($like[0]['COUNT(*)'] > 0) {
+              $datos[$key]['active'] = false;
+            } else {
+              $datos[$key]['active'] = true;
+            }
             $datos[$key]['drawer'] = false;
-            
-            $datos[$key]['comentarios'] = [[
-              'id' => '6',
-              'user_name' => 'Juan1',
-              'comment' => 'Hola',
-            ],
-            [
-              'id' => '7',
-              'user_name' => 'adios',
-              'comment' => 'aiods',
-            ],
-          ];
-            // quitar el . del principio de la url
+
+            $datos[$key]['comments'] = [];
+
             $datos[$key]['foto'] = substr($datos[$key]['foto'], 1);
             $datos[$key]['foto'] =
               'http://projectdaw.duckdns.org:3377/API-REST' .
@@ -187,7 +184,7 @@ class Post extends Conexion
           return $_respuesta->success($datos);
         } else {
           // retorna error
-          return $_respuesta->error_500();
+          return $_respuesta->error_200('No hay publicaciones');
         }
       } else {
         // enviar respuesta de error 403 forbidden
@@ -195,6 +192,126 @@ class Post extends Conexion
       }
     } else {
       return $_respuesta->error_200('El usuario' . $username . ' no existe');
+    }
+  }
+
+  public function getCommentsByPost($token, $username, $id_post)
+  {
+    $_respuesta = new Respuestas();
+    // instancia de la clase Users $_users = new Users();
+    $_users = new Users();
+    // validar usuario
+    $respuesta = $_users->validateUser($username);
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      // validar token
+      $respuesta = $_users->validateToken($token, $userID);
+      if ($respuesta) {
+        // crear query para obtener los comentaarios de una publicacion
+        $sql = "SELECT * FROM `comentarios` WHERE `publicacion_id` = $id_post ORDER BY `ID_comentario` DESC";
+        // ejecutar query
+        $datos = parent::obtenerDatos($sql);
+        // print_r($datos);
+        // comprobar si esta vacio
+        if ($datos) {
+          // cambiar user_id por userName
+          foreach ($datos as $key => $value) {
+            $userid = $datos[$key]['user_id'];
+            // obtener el nombre del usuario
+            $sql = "SELECT `username` FROM `usuarios` WHERE `ID_user` = $userid";
+            $datos[$key]['username'] = parent::obtenerDatos($sql)[0][
+              'username'
+            ];
+            // quitar el userid del array
+            unset($datos[$key]['user_id']);
+          }
+          // retonar success con $datos
+          return $_respuesta->success($datos);
+        } else {
+          // retorna no hay resultados
+          return $_respuesta->error_200(
+            'No hay comentarios para esta publicación'
+          );
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuesta->error_403();
+      }
+    } else {
+      return $_respuesta->error_200('El usuario' . $username . ' no existe');
+    }
+  }
+
+  public function setLike($json)
+  {
+    $_respuesta = new Respuestas();
+    // instancia de la clase Users $_users = new Users();
+    $_users = new Users();
+
+    // decodificar json
+    $data = json_decode($json, true);
+    // print_r($data);
+    // validar que exista el usuario, el token y el id_post en $data
+    if (
+      !isset($data['user']) ||
+      !isset($data['token']) ||
+      !isset($data['postID'])
+    ) {
+      return $_respuesta->error_400();
+    }
+    
+
+    // validar usuario
+    $respuesta = $_users->validateUser($data['user']);
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      // validar token
+      $respuesta = $_users->validateToken($data['token'], $userID);
+      if ($respuesta) {
+        // validar que el post exista
+        $sql = "SELECT COUNT(*) FROM `publicaciones` WHERE `ID_publicacion` = $data[postID]";
+        $datos = parent::obtenerDatos($sql);
+        if ($datos[0]['COUNT(*)'] > 0) {
+          // validar que el usuario no haya dado like a ese post
+          $sql = "SELECT COUNT(*) FROM `likes` 
+            WHERE `user_id` = $userID AND 
+            `publicacion_id` = $data[postID]";
+          $datos = parent::obtenerDatos($sql);
+          if ($datos[0]['COUNT(*)'] == 0) {
+            // insertar like
+            $sql = "INSERT INTO `likes` (`user_id`, `publicacion_id`) VALUES ($userID, $data[postID])";
+            $datos = parent::nonQuery($sql);
+            if ($datos) {
+              // retorna success
+              return $_respuesta->success('Like agregado');
+            } else {
+              // retorna error
+              return $_respuesta->error_500('Error al agregar like');
+            }
+          } else {
+            $sql = "DELETE FROM `likes` WHERE `user_id` = $userID AND `publicacion_id` = $data[postID]";
+            $datos = parent::nonQuery($sql);
+            if ($datos) {
+              // retorna success
+              return $_respuesta->success('Like eliminado');
+            } else {
+              // retorna error
+              return $_respuesta->error_500('Error al eliminar like');
+            }
+          }
+        } else {
+          return $_respuesta->error_200(
+            'La publicación ' . $data['postID'] . ' no existe'
+          );
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuesta->error_403();
+      }
+    } else {
+      return $_respuesta->error_200(
+        'El usuario' . $data['user'] . ' no existe'
+      );
     }
   }
 }
