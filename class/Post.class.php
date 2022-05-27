@@ -140,11 +140,22 @@ class Post extends Conexion
     }
   }
 
-  public function getUsersByUsername($token, $username, $inicio, $fin)
-  {
+  public function getUsersByUsername(
+    $token,
+    $username,
+    $inicio,
+    $fin,
+    $searchedUser
+  ) {
     $_respuesta = new Respuestas();
     // instancia de la clase Users $_users = new Users();
     $_users = new Users();
+
+    // validar searchedUser
+    $respuesta = $_users->validateUser($searchedUser);
+    if ($respuesta[0]) {
+      $searchedUserID = $respuesta[1];
+    }
     // validar usuario
     $respuesta = $_users->validateUser($username);
     if ($respuesta[0]) {
@@ -152,8 +163,12 @@ class Post extends Conexion
       // validar token
       $respuesta = $_users->validateToken($token, $userID);
       if ($respuesta) {
-        // crear query para obtener los usuarios
-        $sql = "SELECT * FROM `publicaciones` WHERE `user_id` = $userID ORDER BY `ID_publicacion` DESC LIMIT $inicio,$fin";
+        // crear query para obtener las publicaciones de los usuarios
+        if ($searchedUser) {
+          $sql = "SELECT * FROM `publicaciones` WHERE `user_id` = $searchedUserID ORDER BY `ID_publicacion` DESC LIMIT $inicio,$fin";
+        } else {
+          $sql = "SELECT * FROM `publicaciones` WHERE `user_id` = $userID ORDER BY `ID_publicacion` DESC LIMIT $inicio,$fin";
+        }
         // ejecutar query
         $datos = parent::obtenerDatos($sql);
         // print_r($datos);
@@ -259,7 +274,6 @@ class Post extends Conexion
     ) {
       return $_respuesta->error_400();
     }
-    
 
     // validar usuario
     $respuesta = $_users->validateUser($data['user']);

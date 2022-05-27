@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
       $_GET['token'],
       $_GET['user'],
       $_GET['inicio'],
-      $_GET['fin']
+      $_GET['fin'],
+      $_GET['searchedUser']
     );
     //enviar respuesta de $resp
     // if ($resp['status'] == 'OK') {

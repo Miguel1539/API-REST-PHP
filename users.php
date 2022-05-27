@@ -58,11 +58,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
   } else {
-    // metodo para obtener todos los datos del usuario
-    $resp = $_usersImages->getAllProfile(
-      $_GET['token'],
-      $_GET['user']
-    );
+    if ($_GET['searchedUser']){
+      $resp = $_usersImages->getAllProfileByUsername(
+        $_GET['token'],
+        $_GET['user'],
+        $_GET['searchedUser']
+      );
+    } else {
+      $resp = $_usersImages->getAllProfile(
+        $_GET['token'],
+        $_GET['user']
+      );
+    }
+    // // metodo para obtener todos los datos del usuario
+    // $resp = $_usersImages->getAllProfile(
+    //   $_GET['token'],
+    //   $_GET['user']
+    // );
     // enviar respuesta de $resp
     // if ($resp['status'] == 'OK') {
     // } else {

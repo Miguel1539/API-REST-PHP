@@ -116,6 +116,49 @@ class Users extends Conexion
     }
   }
 
+  public function getAllProfileByUsername($token, $username, $searchedUser)
+  {
+    $_respuestas = new Respuestas();
+    // validar usuario
+    $respuesta = $this->validateUser($username);
+    // si el usuario existe
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      // validar token
+      $respuesta = $this->validateToken($token, $userID);
+
+      // si el token es valido
+      if ($respuesta) {
+        // validar que el usuario buscado exista
+        $respuesta = $this->validateUser($searchedUser);
+        // si el usuario existe
+        if ($respuesta[0]) {
+          $searchedUserID = $respuesta[1];
+          // obtener todos los datos del usuario
+          $respuesta = $this->getAll($searchedUserID);
+          // si se obtuvieron los datos
+          if ($respuesta) {
+            unset($respuesta['email']);
+            return $_respuestas->success([
+              'datos' => $respuesta,
+            ]);
+          } else {
+            return $_respuestas->error_500();
+          }
+        } else {
+          // enviar respuesta de error 200 usuario no existe
+          return $_respuestas->error_200("El usuario $searchedUser no existe");
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuestas->error_403();
+      }
+    } else {
+      // enviar respuesta de error 200 usuario no existe
+      return $_respuestas->error_200("El usuario $username no existe");
+    }
+  }
+
   // crear una funcion privada para validar el usuario y el token
   public function validateUser($username)
   {
