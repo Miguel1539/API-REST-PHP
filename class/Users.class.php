@@ -44,7 +44,39 @@ class Users extends Conexion
       return $_respuestas->error_200("El usuario $username no existe");
     }
   }
-
+  public function updateDescriptionProfile($token, $username, $desciption)
+  {
+    $_respuestas = new Respuestas();
+    // validar usuario
+    $respuesta = $this->validateUser($username);
+    // print_r($respuesta);
+    // si el usuario existe
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      // validar token
+      $respuesta = $this->validateToken($token, $userID);
+      // si el token es valido
+      if ($respuesta) {
+        // actualizar la descripcion
+        $respuesta = $this->updateDescription($userID, $desciption);
+        // si se actualizo la descripcion
+        if ($respuesta) {
+          return $_respuestas->success([
+            'mensaje' => 'Descripcion actualizada correctamente',
+          ]);
+        } else {
+          // error 200  ya existe la descripcion
+          return $_respuestas->error_200('Ya existe la descripcion');
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuestas->error_403();
+      }
+    }else{
+      // enviar respuesta de error 200 usuario no existe
+      return $_respuestas->error_200("El usuario $username no existe");
+    }
+  }
   public function getImgProfile($token, $username, $dbImgName)
   {
     $_respuestas = new Respuestas();
@@ -156,6 +188,65 @@ class Users extends Conexion
     } else {
       // enviar respuesta de error 200 usuario no existe
       return $_respuestas->error_200("El usuario $username no existe");
+    }
+  }
+
+  public function getListUsers($token, $username, $stringToSearch)
+  {
+    $_respuestas = new Respuestas();
+    // validar usuario
+    $respuesta = $this->validateUser($username);
+    // si el usuario existe
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      // validar token
+      $respuesta = $this->validateToken($token, $userID);
+      // si el token es valido
+      if ($respuesta) {
+        // obtener una lista con los usuarios
+        $respuesta = $this->getList($stringToSearch);
+        if ($respuesta) {
+          // modificar la url de las imagenes
+          foreach ($respuesta as $key => $value) {
+            if ($value['foto_perfil'] != null) {
+              $respuesta[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST' .
+                substr($value['foto_perfil'], 1);
+            } else {
+              $respuesta[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST/img/default/genericUser2.jpg';
+            }
+          }
+
+          return $_respuestas->success([
+            'lista' => $respuesta,
+          ]);
+        } else {
+          // error 200 no existe ningun usuario con ese nombre
+          return $_respuestas->error_200(
+            'No existe ningun usuario con ese nombre'
+          );
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuestas->error_403();
+      }
+    } else {
+      // enviar respuesta de error 200 usuario no existe
+      return $_respuestas->error_200("El usuario $username no existe");
+    }
+  }
+
+  // crear funcion privada para obtener lista de usuario getList
+  private function getList($stringToSearch)
+  {
+    // sacar un maximo de 4 usuarios
+    $sql = "SELECT username,descripcion,foto_perfil FROM usuarios WHERE username LIKE '%$stringToSearch%' LIMIT 8";
+    $result = parent::obtenerDatos($sql);
+    if ($result) {
+      return $result;
+    } else {
+      return false;
     }
   }
 
@@ -311,6 +402,22 @@ class Users extends Conexion
     if ($datos[0]) {
       // retorna success si se realizo correctamente
       return $datos[0];
+    } else {
+      // retorna error
+      return false;
+    }
+  }
+
+  // crear funcion privada updateDescription
+  private function updateDescription($userID, $description)
+  {
+    // actualizar la descripcion
+    $sql = "UPDATE usuarios SET `descripcion` = '$description' WHERE `ID_user` = $userID";
+    $datos = parent::nonQuery($sql);
+    print_r($datos);
+    // retorna success si se realizo correctamente
+    if ($datos) {
+      return true;
     } else {
       // retorna error
       return false;

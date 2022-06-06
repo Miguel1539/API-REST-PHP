@@ -33,14 +33,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
   } else {
-    //metodo para obtener la imagen del usuario
-    $getUsersByUsername = $_posts->getUsersByUsername(
-      $_GET['token'],
-      $_GET['user'],
-      $_GET['inicio'],
-      $_GET['fin'],
-      $_GET['searchedUser']
-    );
+    if ($_GET['searchedUser'] === 'al') {
+      $getUsersByUsername = $_posts->getAllPosts(
+        $_GET['token'],
+        $_GET['user'],
+        $_GET['inicio'],
+        $_GET['fin']
+      );
+    } else {
+      //metodo para obtener la imagen del usuario
+      $getUsersByUsername = $_posts->getUsersByUsername(
+        $_GET['token'],
+        $_GET['user'],
+        $_GET['inicio'],
+        $_GET['fin'],
+        $_GET['searchedUser']
+      );
+    }
     //enviar respuesta de $resp
     // if ($resp['status'] == 'OK') {
     // } else {

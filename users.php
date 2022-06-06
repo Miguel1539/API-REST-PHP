@@ -58,17 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
   } else {
-    if ($_GET['searchedUser']){
+    if ($_GET['searchedUser']) {
       $resp = $_usersImages->getAllProfileByUsername(
         $_GET['token'],
         $_GET['user'],
         $_GET['searchedUser']
       );
-    } else {
-      $resp = $_usersImages->getAllProfile(
+    } elseif ($_GET['stringToSearch']) {
+      $resp = $_usersImages->getListUsers(
         $_GET['token'],
-        $_GET['user']
+        $_GET['user'],
+        $_GET['stringToSearch']
       );
+    } else {
+      $resp = $_usersImages->getAllProfile($_GET['token'], $_GET['user']);
     }
     // // metodo para obtener todos los datos del usuario
     // $resp = $_usersImages->getAllProfile(
@@ -94,14 +97,14 @@ elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $resp = $_respuestas->error_403();
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
-  } elseif (!isset($_FILES['imagen'])) {
-    // enviar header json
-
+  } elseif (!isset($_GET['user'])) {
     //respuesta de error 400 bad request
     $resp = $_respuestas->error_400();
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
-  } elseif (!isset($_GET['user'])) {
+  } elseif (!isset($_FILES['imagen'])) {
+    // enviar header json
+
     //respuesta de error 400 bad request
     $resp = $_respuestas->error_400();
     http_response_code($resp['result']['error_id']);
@@ -133,6 +136,7 @@ elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
           $_FILES['imagen'],
           'img_banner_profile'
         );
+
         break;
       default:
         // enviar header json
@@ -148,6 +152,20 @@ elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
     http_response_code($resp['result']['error_id']);
     echo json_encode($resp);
   }
+} elseif ($_SERVER['REQUEST_METHOD'] == 'PUT') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $body = file_get_contents('php://input');
+  $body = json_decode($body, true);
+  // echo $body['token'];
+  $resp = $_usersImages->updateDescriptionProfile(
+    $body['token'],
+    $body['user'],
+    $body['description']
+  );
+  // enviar respuesta de $resp
+  http_response_code($resp['result']['error_id']);
+  echo json_encode($resp);
 } else {
   // mandar header json
   header('Content-Type: application/json; charset=utf-8');
