@@ -72,7 +72,7 @@ class Users extends Conexion
         // enviar respuesta de error 403 forbidden
         return $_respuestas->error_403();
       }
-    }else{
+    } else {
       // enviar respuesta de error 200 usuario no existe
       return $_respuestas->error_200("El usuario $username no existe");
     }
@@ -237,6 +237,93 @@ class Users extends Conexion
     }
   }
 
+  public function setFolow($json)
+  {
+    // $_respuestas = new Respuestas();
+    // obtener los datos del json
+    $body = json_decode($json, true);
+    // validar que los datos sean correctos
+    $respuesta = $this->validateFollow($body);
+    return $respuesta;
+  }
+
+  // crear funcion privada para validar los datos del seguidor
+  private function validateFollow($body)
+  {
+    $_respuestas = new Respuestas();
+    // sacar a variables
+    $token = $body['token'];
+    $follower = $body['user'];
+    $followed = $body['userToFolow'];
+
+    // validar el follower
+    $respuesta = $this->validateUser($follower);
+    // si el usuario existe
+    if ($respuesta[0]) {
+      $follower_id = $respuesta[1];
+      // validar el token
+      $respuesta = $this->validateToken($token, $follower_id);
+      // si el token es valido
+      if ($respuesta) {
+        // validar el followed
+        $respuesta = $this->validateUser($followed);
+        if ($respuesta[0]) {
+          $followed_id = $respuesta[1];
+          // validar que el usuario no se siga a si mismo
+          if ($follower_id != $followed_id){
+            // seguir al usuario
+            $respuesta = $this->follow($follower_id, $followed_id);
+            if ($respuesta) {
+              return $_respuestas->success([
+                'msg' => $respuesta,
+              ]);
+            } else {
+              return $_respuestas->error_200('No se pudo seguir al usuario');
+            }
+          }else{
+            return $_respuestas->error_200(
+              'No puedes seguirte a ti mismo'
+            );
+          }
+        } else {
+          return $_respuestas->error_200("El usuario $followed no existe");
+        }
+      } else {
+        // enviar respuesta de error 403 forbidden
+        return $_respuestas->error_403();
+      }
+    } else {
+      return $_respuestas->error_200("El usuario $follower no existe");
+    }
+  }
+  private function follow ($follower_id, $followed_id)
+  {
+    // ver si ya lo sigue
+    $query = "SELECT COUNT(*) FROM seguidores WHERE seguidor_id = $follower_id AND seguido_id = $followed_id";
+    $result = parent::obtenerDatos($query);
+    // print_r($result);
+    if ($result[0]['COUNT(*)'] > 0){
+      // borrar el seguimiento
+      $query = "DELETE FROM seguidores WHERE seguidor_id = $follower_id AND seguido_id = $followed_id";
+      $result = parent::nonQuery($query);
+      if ($result) {
+        // retorna un mensaje  de exito
+        return 'Ya no sigues a este usuario';
+      } else {
+        return false;
+      }
+    }else {
+      // insertar el seguidor
+      $query = "INSERT INTO seguidores (seguidor_id, seguido_id) VALUES ($follower_id, $followed_id)";
+      $result = parent::nonQuery($query);
+      if ($result) {
+        // retorna un mensaje  de exito
+        return "Se ha seguido al usuario correctamente";
+      } else {
+        return false;
+      }
+    }
+  }
   // crear funcion privada para obtener lista de usuario getList
   private function getList($stringToSearch)
   {
@@ -378,7 +465,14 @@ class Users extends Conexion
   {
     // obtener todos los datos del usuario
     $sql = "SELECT * FROM usuarios WHERE  `ID_user` = $userID";
+    $sqlFollowers = "SELECT COUNT(*) FROM seguidores WHERE `seguido_id` = $userID";
+    $sqlFollowing = "SELECT COUNT(*) FROM seguidores WHERE `seguidor_id` = $userID";
     $datos = parent::obtenerDatos($sql);
+    $datosFollowers = parent::obtenerDatos($sqlFollowers);
+    $datosFollowing = parent::obtenerDatos($sqlFollowing);
+    // añadir datos seguidores y siguendo
+    $datos[0]['seguidores'] = $datosFollowers[0]['COUNT(*)'];
+    $datos[0]['seguidos'] = $datosFollowing[0]['COUNT(*)'];
     //quitar la contraseña, ID_user y datos vacios
     unset($datos[0]['password']);
     unset($datos[0]['ID_user']);
