@@ -241,14 +241,7 @@ class Post extends Conexion
                 'http://projectdaw.duckdns.org:3377/API-REST' .
                 substr($data[0]['foto_perfil'], 1);
             }
-            // $datos[$key]['foto_perfil'] ='http://projectdaw.duckdns.org:3377/API-REST' . substr($data[0]['foto_perfil'], 1);
-            // print_r($data);
-            // $datos[$key]['foto_perfil'] = substr($data[0]['foto_perfil'], 1);
-            // $datos[$key]['foto_perfil'] =
-            //   
-            //   $datos[$key]['foto_perfil'];
-            // añadir active: true, drawer: false
-            // query para saber si el usuario dio like
+        
             $sql = "SELECT COUNT(*) FROM `likes` WHERE `user_id` = $userID AND `publicacion_id` = $value[ID_publicacion]";
             $like = parent::obtenerDatos($sql);
             if ($like[0]['COUNT(*)'] > 0) {
@@ -278,9 +271,73 @@ class Post extends Conexion
         return $_respuesta->error_403();
       }
     } else {
-      return $_respuesta->error_200('El usuario' . $user . ' no existe');
+      return $_respuesta->error_200('El usuario ' . $user . ' no existe');
     }
 
+  }
+
+  public function getFavoritePosts($token, $user, $inicio, $fin)
+  {
+    $_respuesta = new Respuestas();
+    // instancia de la clase Users $_users = new Users();
+    $_users = new Users();
+    // validar usuario
+    $respuesta = $_users->validateUser($user);
+    if ($respuesta[0]) {
+      $userID = $respuesta[1];
+      $respuesta = $_users->validateToken($token, $userID);
+      if ($respuesta) {
+        // crear query para obtener las publicaciones a las que ha dado like el usuario
+        $sql = "SELECT * FROM `publicaciones` WHERE `ID_publicacion` IN (SELECT `publicacion_id` FROM `likes` WHERE `user_id` = $userID) ORDER BY `ID_publicacion` DESC LIMIT $inicio,$fin";
+        // ejecutar query
+        $datos = parent::obtenerDatos($sql);
+        // print_r($datos);
+        // retorna success si se realizo correctamente
+        if ($datos) {
+          // formatear url de las imagenes
+          foreach ($datos as $key => $value) {
+            // añadir la imagen del perfil y su username del usuario que hizo la publicacion
+            $sql = "SELECT `foto_perfil`, `username` FROM `usuarios` WHERE `ID_user` = $value[user_id]";
+            $data = parent::obtenerDatos($sql);
+            $datos[$key]['username']= $data[0]['username'];
+            if ($data[0]['foto_perfil'] == null) {
+              $datos[$key]['foto_perfil'] = 'http://projectdaw.duckdns.org:3377/API-REST/img/default/genericUser2.jpg';
+            } else {
+              $datos[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST' .
+                substr($data[0]['foto_perfil'], 1);
+            }
+        
+            $sql = "SELECT COUNT(*) FROM `likes` WHERE `user_id` = $userID AND `publicacion_id` = $value[ID_publicacion]";
+            $like = parent::obtenerDatos($sql);
+            if ($like[0]['COUNT(*)'] > 0) {
+              $datos[$key]['active'] = false;
+            } else {
+              $datos[$key]['active'] = true;
+            }
+            $datos[$key]['drawer'] = false;
+
+            $datos[$key]['comments'] = [];
+
+            $datos[$key]['foto'] = substr($datos[$key]['foto'], 1);
+            $datos[$key]['foto'] =
+              'http://projectdaw.duckdns.org:3377/API-REST' .
+              $datos[$key]['foto'];
+            // quitar el userid del array
+            unset($datos[$key]['user_id']);
+
+          }
+          return $_respuesta->success($datos);
+        } else {
+          // retorna error
+          return $_respuesta->error_200('No hay publicaciones');
+        }
+      }else{
+        return $_respuesta->error_403();
+      }
+    } else {
+      return $_respuesta->error_200('El usuario ' . $user . ' no existe');
+    }
   }
 
   public function getCommentsByPost($token, $username, $id_post)

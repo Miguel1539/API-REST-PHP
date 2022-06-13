@@ -40,7 +40,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $_GET['inicio'],
         $_GET['fin']
       );
-    } else {
+    }elseif ($_GET['searchedUser'] === 'fa'){
+      $getUsersByUsername = $_posts->getFavoritePosts(
+        $_GET['token'],
+        $_GET['user'],
+        $_GET['inicio'],
+        $_GET['fin']
+      );
+    }else {
       //metodo para obtener la imagen del usuario
       $getUsersByUsername = $_posts->getUsersByUsername(
         $_GET['token'],

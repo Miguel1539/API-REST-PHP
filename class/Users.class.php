@@ -132,6 +132,45 @@ class Users extends Conexion
         $respuesta = $this->getAll($userID);
         // si se obtuvo la imagen
         if ($respuesta) {
+          // query para obtener la lista de seguidores
+          $query = "SELECT username, descripcion, foto_perfil
+          FROM usuarios
+          WHERE ID_user IN
+          (SELECT seguidor_id FROM seguidores WHERE seguido_id = $userID)";
+          
+          // query para obtener la lista de seguidos
+          $query2 = "SELECT username, descripcion, foto_perfil 
+          FROM usuarios 
+          WHERE ID_user IN 
+          (SELECT seguido_id FROM seguidores WHERE seguidor_id = $userID)";
+
+          $followers = parent::obtenerDatos($query);
+          $following = parent::obtenerDatos($query2);
+          foreach ($followers as $key => $value) {
+            if ($value['foto_perfil'] != null) {
+              $followers[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST' .
+                substr($value['foto_perfil'], 1);
+            }else{
+              $followers[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST/' .
+                'img/default/genericUser2.jpg';
+            }
+          }
+          foreach ($following as $key => $value) {
+            if ($value['foto_perfil'] != null) {
+              $following[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST' .
+                substr($value['foto_perfil'], 1);
+            }else{
+              $following[$key]['foto_perfil'] =
+                'http://projectdaw.duckdns.org:3377/API-REST/' .
+                'img/default/genericUser2.jpg';
+            }
+          }
+          // añadir los seguidos y seguidores a la respuesta
+          $respuesta['seguidoresData'] = $followers;
+          $respuesta['seguidosData'] = $following;
           return $_respuestas->success([
             'datos' => $respuesta,
           ]);
@@ -171,6 +210,11 @@ class Users extends Conexion
           // si se obtuvieron los datos
           if ($respuesta) {
             unset($respuesta['email']);
+            $queryIsFollowig = "SELECT COUNT(*) FROM seguidores WHERE seguidor_id = $userID AND seguido_id = $searchedUserID";
+            $isFollowing = parent::obtenerDatos($queryIsFollowig);
+            $isFollowing = $isFollowing[0]['COUNT(*)'] ? true : false;
+            $respuesta['isFollowing'] = $isFollowing;
+            // print_r($isFollowing);
             return $_respuestas->success([
               'datos' => $respuesta,
             ]);
@@ -237,11 +281,12 @@ class Users extends Conexion
     }
   }
 
-  public function setFolow($json)
+  public function setFollow($json)
   {
     // $_respuestas = new Respuestas();
     // obtener los datos del json
     $body = json_decode($json, true);
+
     // validar que los datos sean correctos
     $respuesta = $this->validateFollow($body);
     return $respuesta;
@@ -270,9 +315,10 @@ class Users extends Conexion
         if ($respuesta[0]) {
           $followed_id = $respuesta[1];
           // validar que el usuario no se siga a si mismo
-          if ($follower_id != $followed_id){
+          if ($follower_id != $followed_id) {
             // seguir al usuario
             $respuesta = $this->follow($follower_id, $followed_id);
+            // print_r($respuesta);
             if ($respuesta) {
               return $_respuestas->success([
                 'msg' => $respuesta,
@@ -280,10 +326,8 @@ class Users extends Conexion
             } else {
               return $_respuestas->error_200('No se pudo seguir al usuario');
             }
-          }else{
-            return $_respuestas->error_200(
-              'No puedes seguirte a ti mismo'
-            );
+          } else {
+            return $_respuestas->error_200('No puedes seguirte a ti mismo');
           }
         } else {
           return $_respuestas->error_200("El usuario $followed no existe");
@@ -296,13 +340,14 @@ class Users extends Conexion
       return $_respuestas->error_200("El usuario $follower no existe");
     }
   }
-  private function follow ($follower_id, $followed_id)
+  private function follow($follower_id, $followed_id)
   {
     // ver si ya lo sigue
     $query = "SELECT COUNT(*) FROM seguidores WHERE seguidor_id = $follower_id AND seguido_id = $followed_id";
     $result = parent::obtenerDatos($query);
+    // print_r($result[0]['COUNT(*)']);
     // print_r($result);
-    if ($result[0]['COUNT(*)'] > 0){
+    if ($result[0]['COUNT(*)'] == 1) {
       // borrar el seguimiento
       $query = "DELETE FROM seguidores WHERE seguidor_id = $follower_id AND seguido_id = $followed_id";
       $result = parent::nonQuery($query);
@@ -312,13 +357,14 @@ class Users extends Conexion
       } else {
         return false;
       }
-    }else {
+    } else {
+      // echo "hola";
       // insertar el seguidor
       $query = "INSERT INTO seguidores (seguidor_id, seguido_id) VALUES ($follower_id, $followed_id)";
       $result = parent::nonQuery($query);
       if ($result) {
         // retorna un mensaje  de exito
-        return "Se ha seguido al usuario correctamente";
+        return 'Se ha seguido al usuario correctamente';
       } else {
         return false;
       }
